@@ -39,7 +39,7 @@ def write_csv(data_dir, outfile, header_keys):
                 try:
                     csv_line.append(hdrs[ext][keyword])
                 except KeyError:
-                    csv_line.append("N/A")
+                    csv_line.append(" ")
         writer.writerow(csv_line)
         uniq_filenames.append(rootname)
     

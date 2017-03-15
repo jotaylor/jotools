@@ -96,18 +96,23 @@ def get_reffile_info(bpixtab, gsagtab, sdq, sdqflags, date, hvs):
             Serious Data Quality Flags
         date : float
             MJD date to use when selecting DQ regions in the GSAGTAB.
-        hva : int
-            HVLEVELA to use when selecting extensionf of the GSAGTAB.
-        hvb : int
-            HVLEVELB to use when selecting extensionf of the GSAGTAB.
+        hvs: dict
+            Dictionary with information on HVLEVELA & HVLEVELB for use
+            when selecting the correct GSAGTAB extension.
     
     Returns:
     --------
         data_dict : dictionary
             Dictionary with information describing the LX, LY, DX, DY, and DQ
             for each segment. 
+        date : float
+            Updated MJD date to use when selecting DQ regions in the GSAGTAB.
+        hvs: dict
+            Updated dictionary with information on HVLEVELA & HVLEVELB for use
+            when selecting the correct GSAGTAB extension.
     '''
 
+    # If both ref files, parse them both and combine results into one dict.
     if bpixtab and gsagtab:
         bpix_dict = parse_bpixtab(bpixtab, sdq, sdqflags)
         gsag_dict, hvs, date = parse_gsagtab(gsagtab, sdq, sdqflags, date, hvs)
@@ -147,25 +152,29 @@ def parse_bpixtab(bpixtab, sdq, sdqflags):
         data_dict : dictionary
             Dictionary with information describing the LX, LY, DX, DY, and DQ
     '''
+
     print("Using {0}".format(bpixtab))
+    # Open file and get the 1st data extension.
     with pf.open(bpixtab) as hdulist:
         data = hdulist[1].data
     segments = list(set(data["segment"]))
     
+    # Curate dictionary with DQ information for each segment.
     data_dict = {}
-    for i in np.arange(len(segments)):
-        data_dict[segments[i]] = {"lx": [], 
-                                  "ly": [],
-                                  "dx": [],
-                                  "dy": [],
-                                  "dq": []}
-        inds = np.where(data["segment"] == segments[i])[0]
-        
+    for segment in segments:
+        data_dict[segment] = {"lx": [], 
+                              "ly": [],
+                              "dx": [],
+                              "dy": [],
+                              "dq": []}
+        inds = np.where(data["segment"] == segment)[0]
+
+        # Get only DQ value sin SDQFLAGS if applicable.        
         if sdq:
             inds = np.where(data[inds]["dq"]&sdqflags != 0)[0]
         
         for col in ["lx", "ly", "dx", "dy", "dq"]:
-            data_dict[segments[i]][col] = data[inds][col]
+            data_dict[segment][col] = data[inds][col]
 
     return data_dict
 
@@ -187,20 +196,25 @@ def parse_gsagtab(gsagtab, sdq, sdqflags, date, hvs):
             Serious Data Quality Flags
         date : float
             MJD date to use when selecting DQ regions in the GSAGTAB.
-        hva : int
-            HVLEVELA to use when selecting extensionf of the GSAGTAB.
-        hvb : int
-            HVLEVELB to use when selecting extensionf of the GSAGTAB.
+        hvs: dict
+            Dictionary with information on HVLEVELA & HVLEVELB for use
+            when selecting the correct GSAGTAB extension.
     
     Returns:
     --------
         data_dict : dictionary
             Dictionary with information describing the LX, LY, DX, DY, and DQ
+        date : float
+            Updated MJD date to use when selecting DQ regions in the GSAGTAB.
+        hvs: dict
+            Updated dictionary with information on HVLEVELA & HVLEVELB for use
+            when selecting the correct GSAGTAB extension.
     '''
 
     print("Using {0}".format(gsagtab))
     hdulist = pf.open(gsagtab)
 
+    # If user did not specify HVLEVLA/B, set to default values.
     if not hvs["FUVA"]:
         hvs["FUVA"] = 167
         print("WARNING: no HVLEVELA specified, using default value of {0}".format(hvs["FUVA"]))
@@ -212,6 +226,8 @@ def parse_gsagtab(gsagtab, sdq, sdqflags, date, hvs):
     else:
         print("Using HVLEVELB = {0}".format(hvs["FUVB"]))
 
+    # While loop that goes through each data extension of the GSAGTAB until it finds
+    # matching values for specified HVLEVELA/B..
     exts = {}
     i = 1
     while len(exts.keys()) != 2:
@@ -222,22 +238,28 @@ def parse_gsagtab(gsagtab, sdq, sdqflags, date, hvs):
                     hv = hdulist[i].header[h_key]
                     if hv == hvs[key]:
                         exts[key] = [i,hv]
+                # When you're looking at the wrong segment.
                 except KeyError:
                     pass
+                # When you've reached the end of the extensions.    
                 except IndexError:
                     print("Something went wrong, only found {0} for HVLEVELA={1}, HVLEVELB={2}".format(exts, hvs["FUVA"], hvs["FUVB"]))
                     break
+        # If the for loop exited normally
         else:
             i += 1
             continue
+        # If the for loop did not exit normally
         break
-    
+
+    # If user did not specify date, set to default value.    
     if not date:
         date = 57822.0
         print("WARNING: no date specified, using default value of {0}".format(str(date)))
     else:
         print("Using date (MJD) = {0}".format(date))
 
+    # Curate dictionary with DQ information for each segment.
     data_dict = {}
     for segment in exts.keys():
         data_dict[segment] = {"lx": [], 
@@ -247,14 +269,18 @@ def parse_gsagtab(gsagtab, sdq, sdqflags, date, hvs):
                               "dq": []}
         ext = exts[segment][0]
         data = hdulist[ext].data
+        # Select data by date.
         inds = np.where(data["date"] <= date)[0]
         
+        # Get only DQ value sin SDQFLAGS if applicable.        
         if sdq:
             inds = np.where(data[inds]["dq"]&sdqflags != 0)[0]
         
         for col in ["lx", "ly", "dx", "dy", "dq"]:
             data_dict[segment][col] = data[inds][col]
 
+    hdulist.close()
+    
     return data_dict, hvs, date 
                         
 #-----------------------------------------------------------------------------#
@@ -274,12 +300,11 @@ def plot_reffile(data_dict, bpixtab, gsagtab, hvs, date, sdq, sdqflags, cmap, bo
             Switch to plot only SDQ regions.
         sdqflags : int
             Serious Data Quality Flags
+        hvs: dict
+            Dictionary with information on HVLEVELA & HVLEVELB for use
+            when selecting the correct GSAGTAB extension.
         date : float
             MJD date to use when selecting DQ regions in the GSAGTAB.
-        hva : int
-            HVLEVELA to use when selecting extensionf of the GSAGTAB.
-        hvb : int
-            HVLEVELB to use when selecting extensionf of the GSAGTAB.
         cmap : matplotlib.colors.LinearSegmentedColormap object
             Modified cmap for use.
         bounds : array-like object

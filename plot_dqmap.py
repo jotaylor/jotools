@@ -37,7 +37,7 @@ DQs = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 1638
 #-----------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------#
 
-def define_cmap(cmap_name="nipy_spectral"):
+def define_cmap(cmap_name="gist_ncar"):
     '''
     Define a custom linear colormap, based off an existing matplotlib colormap.
 
@@ -56,11 +56,11 @@ def define_cmap(cmap_name="nipy_spectral"):
             Normalization of cmap
     '''
     
-# Get existing cmap colors
+    # Get existing cmap colors
     cmap = pl.get_cmap(cmap_name)
     cmaplist = [cmap(i) for i in range(cmap.N)]
     
-    #Create a new segmented cmap based off the existing one.
+    # Create a new segmented cmap based off the existing one.
     cmap = LinearSegmentedColormap.from_list("dq", cmaplist, cmap.N)
 
     # Define the boundaries for each color, in this case halfway between DQs
@@ -80,7 +80,7 @@ def define_cmap(cmap_name="nipy_spectral"):
 #-----------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------#
 
-def get_reffile_info(bpixtab, gsagtab, sdq, sdqflags, date, hva, hvb):
+def get_reffile_info(bpixtab, gsagtab, sdq, sdqflags, date, hvs):
     '''
     Get the relevant information from BPIXTAB and/or GSAGTAB.
 
@@ -110,7 +110,7 @@ def get_reffile_info(bpixtab, gsagtab, sdq, sdqflags, date, hva, hvb):
 
     if bpixtab and gsagtab:
         bpix_dict = parse_bpixtab(bpixtab, sdq, sdqflags)
-        gsag_dict = parse_gsagtab(gsagtab, sdq, sdqflags, date, hva, hvb)
+        gsag_dict, hvs, date = parse_gsagtab(gsagtab, sdq, sdqflags, date, hvs)
         data_dict = {}
         for segment in bpix_dict.keys():
             data_dict[segment] = {} 
@@ -120,11 +120,11 @@ def get_reffile_info(bpixtab, gsagtab, sdq, sdqflags, date, hva, hvb):
     elif bpixtab:
         data_dict = parse_bpixtab(bpixtab, sdq, sdqflags)
     elif gsagtab:
-        data_dict = parse_gsagtab(gsagtab, sdq, sdqflags, date, hva, hvb)
+        data_dict, hvs, date = parse_gsagtab(gsagtab, sdq, sdqflags, date, hvs)
     else:
         print("You must specify either a BPIXTAB or GSAGTAB!")
 
-    return data_dict
+    return data_dict, hvs, date
 
 #-----------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------#
@@ -172,7 +172,7 @@ def parse_bpixtab(bpixtab, sdq, sdqflags):
 #-----------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------#
 
-def parse_gsagtab(gsagtab, sdq, sdqflags, date, hva, hvb):
+def parse_gsagtab(gsagtab, sdq, sdqflags, date, hvs):
     '''
     Open a GSAGTAB and get the DQ information for each segment, given a
     specific date, HVLEVELA, and HVLEVELB. 
@@ -201,17 +201,17 @@ def parse_gsagtab(gsagtab, sdq, sdqflags, date, hva, hvb):
     print("Using {0}".format(gsagtab))
     hdulist = pf.open(gsagtab)
 
-    if not hva:
-        hva = 167
-        print("WARNING: no HVLEVELA specified, using default value of {0}".format(hva))
+    if not hvs["FUVA"]:
+        hvs["FUVA"] = 167
+        print("WARNING: no HVLEVELA specified, using default value of {0}".format(hvs["FUVA"]))
     else:
-        print("Using HVLEVELA = {0}".format(hva))
-    if not hvb:
-        hvb = 175
-        print("WARNING: no HVLEVELA specified, using default value of {0}".format(hvb))
+        print("Using HVLEVELA = {0}".format(hvs["FUVA"]))
+    if not hvs["FUVB"]:
+        hvs["FUVB"] = 175
+        print("WARNING: no HVLEVELA specified, using default value of {0}".format(hvs["FUVB"]))
     else:
-        print("Using HVLEVELB = {0}".format(hvb))
-    
+        print("Using HVLEVELB = {0}".format(hvs["FUVB"]))
+
     exts = {}
     i = 1
     while len(exts.keys()) != 2:
@@ -220,13 +220,17 @@ def parse_gsagtab(gsagtab, sdq, sdqflags, date, hva, hvb):
                 try:
                     h_key = "hvlevel{0}".format(key[-1].lower())
                     hv = hdulist[i].header[h_key]
-                    exts[key] = [i,hv]
+                    if hv == hvs[key]:
+                        exts[key] = [i,hv]
                 except KeyError:
                     pass
                 except IndexError:
-                    print("Something went wrong, only found {0}".format(exts))
+                    print("Something went wrong, only found {0} for HVLEVELA={1}, HVLEVELB={2}".format(exts, hvs["FUVA"], hvs["FUVB"]))
                     break
-        i += 1
+        else:
+            i += 1
+            continue
+        break
     
     if not date:
         date = 57822.0
@@ -237,10 +241,10 @@ def parse_gsagtab(gsagtab, sdq, sdqflags, date, hva, hvb):
     data_dict = {}
     for segment in exts.keys():
         data_dict[segment] = {"lx": [], 
-                                 "ly": [],
-                                 "dx": [],
-                                 "dy": [],
-                                 "dq": []}
+                              "ly": [],
+                              "dx": [],
+                              "dy": [],
+                              "dq": []}
         ext = exts[segment][0]
         data = hdulist[ext].data
         inds = np.where(data["date"] <= date)[0]
@@ -251,12 +255,12 @@ def parse_gsagtab(gsagtab, sdq, sdqflags, date, hva, hvb):
         for col in ["lx", "ly", "dx", "dy", "dq"]:
             data_dict[segment][col] = data[inds][col]
 
-    return data_dict 
+    return data_dict, hvs, date 
                         
 #-----------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------#
 
-def plot_reffile(data_dict, bpixtab, gsagtab, sdq, sdqflags, save):
+def plot_reffile(data_dict, bpixtab, gsagtab, hvs, date, sdq, sdqflags, cmap, bounds, norm, save):
     '''
     Plot the bad pixel regions (BPIXTAB and/or GSAGTAB) for each segment.
 
@@ -276,6 +280,12 @@ def plot_reffile(data_dict, bpixtab, gsagtab, sdq, sdqflags, save):
             HVLEVELA to use when selecting extensionf of the GSAGTAB.
         hvb : int
             HVLEVELB to use when selecting extensionf of the GSAGTAB.
+        cmap : matplotlib.colors.LinearSegmentedColormap object
+            Modified cmap for use.
+        bounds : array-like object
+            Boundaries of the cmap.
+        norm : matplotlib.colors.BoundaryNorm object
+            Normalization of cmap
         save : Bool
             Switch to save figure as png
              
@@ -311,11 +321,11 @@ def plot_reffile(data_dict, bpixtab, gsagtab, sdq, sdqflags, save):
         ax.set_xlim(500, 15500)
         ax.set_ylim(200, 830)
         if bpixtab and gsagtab:
-            refname = "{0} and {1}".format(bpixtab, gsagtab)
+            refname = "{0} and {1} (date={2})".format(bpixtab, gsagtab, date)
         elif bpixtab:
             refname = bpixtab
         elif gsagtab:
-            refname = gsagtab
+            refname = "{0} (date={1})".format(gsagtab, date)
         ax.set_title("{0} {1} DQ Flags".format(refname, segment))
         ax.set_ylabel("YFULL")
         
@@ -326,7 +336,13 @@ def plot_reffile(data_dict, bpixtab, gsagtab, sdq, sdqflags, save):
                         xy=(0.01, 0.9),
                         xycoords="axes fraction", 
                         fontsize=14)
-        
+        # Print HVLEVELA & HVELEVB if applicable
+        if gsagtab:
+            ax.annotate("HVLEVEL{0}={1}".format(segment[-1], hvs[segment]),
+                        xy=(0.01, 0.85),
+                        xycoords="axes fraction",
+                        fontsize=14)
+
         # Set axis labels
     ax_list = fig.axes
     ax_list[-1].set_xlabel("XFULL")
@@ -400,10 +416,11 @@ if __name__ == "__main__":
         hvb = int(args.hvb)
     else:
         hvb = args.hvb
+    hvs = {"FUVA": hva, "FUVB": hvb}
     save = args.save
 
     # Define colormap
     cmap, bounds, norm = define_cmap()
 
-    data_dict = get_reffile_info(bpixtab, gsagtab, sdq, sdqflags, date, hva, hvb)
-    plot_reffile(data_dict, bpixtab, gsagtab, sdq, sdqflags, save)
+    data_dict, hvs, date = get_reffile_info(bpixtab, gsagtab, sdq, sdqflags, date, hvs)
+    plot_reffile(data_dict, bpixtab, gsagtab, hvs, date, sdq, sdqflags, cmap, bounds, norm, save)

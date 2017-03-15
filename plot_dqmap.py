@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 '''
-Plot the DQ regions of a given BPIXTAB and/or gsagtab, with the option of only
+Plot the DQ regions of a given BPIXTAB and/or GSAGTAb, with the option of only
 plotting SDQ values.
 
 Usage:
@@ -15,9 +15,13 @@ To only plot BPIXTAB SDQ regions with custom SDQFLAGS value:
 
 To plot BPIXTAB and GSAGTAB:
     python plot_dqmap.py -bpix yae1249sl_bpix.fits -gsag zbn1927gl_gsag.fits
-
- 
 '''
+
+__author__ = "Jo Taylor"
+__date__ = "03-10-2017"
+__maintainer__ = "Jo Taylor"
+__email__ = "jotaylor@stsci.edu"
+
 import argparse
 import matplotlib
 from matplotlib import pyplot as pl
@@ -34,14 +38,32 @@ DQs = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 1638
 #-----------------------------------------------------------------------------#
 
 def define_cmap(cmap_name="nipy_spectral"):
-    # Get existing cmap colors
+    '''
+    Define a custom linear colormap, based off an existing matplotlib colormap.
+
+    Parameters:
+    -----------
+        cmap_name : str
+            Colormap to modify for use. Default is nipy_spectral.
+
+    Returns:
+    --------
+        cmap : matplotlib.colors.LinearSegmentedColormap object
+            Modified cmap for use.
+        bounds : array-like object
+            Boundaries of the cmap.
+        norm : matplotlib.colors.BoundaryNorm object
+            Normalization of cmap
+    '''
+    
+# Get existing cmap colors
     cmap = pl.get_cmap(cmap_name)
     cmaplist = [cmap(i) for i in range(cmap.N)]
     
     #Create a new segmented cmap based off the existing one.
     cmap = LinearSegmentedColormap.from_list("dq", cmaplist, cmap.N)
 
-    # Defint the boundaries for each color, in this case halfway between DQs
+    # Define the boundaries for each color, in this case halfway between DQs
     b = [0]
     for i in np.arange(len(DQs)):
         if i == len(DQs)-1:
@@ -59,6 +81,33 @@ def define_cmap(cmap_name="nipy_spectral"):
 #-----------------------------------------------------------------------------#
 
 def get_reffile_info(bpixtab, gsagtab, sdq, sdqflags, date, hva, hvb):
+    '''
+    Get the relevant information from BPIXTAB and/or GSAGTAB.
+
+    Parameters:
+    -----------
+        bpixtab : str
+            The BPIXTAB to plot.
+        gsagtab : str
+            The GSAGTAB to plot.
+        sdq : Bool
+            Switch to plot only SDQ regions.
+        sdqflags : int
+            Serious Data Quality Flags
+        date : float
+            MJD date to use when selecting DQ regions in the GSAGTAB.
+        hva : int
+            HVLEVELA to use when selecting extensionf of the GSAGTAB.
+        hvb : int
+            HVLEVELB to use when selecting extensionf of the GSAGTAB.
+    
+    Returns:
+    --------
+        data_dict : dictionary
+            Dictionary with information describing the LX, LY, DX, DY, and DQ
+            for each segment. 
+    '''
+
     if bpixtab and gsagtab:
         bpix_dict = parse_bpixtab(bpixtab, sdq, sdqflags)
         gsag_dict = parse_gsagtab(gsagtab, sdq, sdqflags, date, hva, hvb)
@@ -81,6 +130,23 @@ def get_reffile_info(bpixtab, gsagtab, sdq, sdqflags, date, hva, hvb):
 #-----------------------------------------------------------------------------#
 
 def parse_bpixtab(bpixtab, sdq, sdqflags):
+    '''
+    Open a BPIXTAB and get the DQ information for each segment.
+
+    Parameters:
+    -----------
+        bpixtab : str
+            The BPIXTAB to plot.
+        sdq : Bool
+            Switch to plot only SDQ regions.
+        sdqflags : int
+            Serious Data Quality Flags
+    
+    Returns:
+    --------
+        data_dict : dictionary
+            Dictionary with information describing the LX, LY, DX, DY, and DQ
+    '''
     print("Using {0}".format(bpixtab))
     with pf.open(bpixtab) as hdulist:
         data = hdulist[1].data
@@ -107,15 +173,44 @@ def parse_bpixtab(bpixtab, sdq, sdqflags):
 #-----------------------------------------------------------------------------#
 
 def parse_gsagtab(gsagtab, sdq, sdqflags, date, hva, hvb):
+    '''
+    Open a GSAGTAB and get the DQ information for each segment, given a
+    specific date, HVLEVELA, and HVLEVELB. 
+    
+    Parameters:
+    -----------
+        gsagtab : str
+            The GSAGTAB to plot.
+        sdq : Bool
+            Switch to plot only SDQ regions.
+        sdqflags : int
+            Serious Data Quality Flags
+        date : float
+            MJD date to use when selecting DQ regions in the GSAGTAB.
+        hva : int
+            HVLEVELA to use when selecting extensionf of the GSAGTAB.
+        hvb : int
+            HVLEVELB to use when selecting extensionf of the GSAGTAB.
+    
+    Returns:
+    --------
+        data_dict : dictionary
+            Dictionary with information describing the LX, LY, DX, DY, and DQ
+    '''
+
     print("Using {0}".format(gsagtab))
     hdulist = pf.open(gsagtab)
 
     if not hva:
         hva = 167
         print("WARNING: no HVLEVELA specified, using default value of {0}".format(hva))
+    else:
+        print("Using HVLEVELA = {0}".format(hva))
     if not hvb:
         hvb = 175
         print("WARNING: no HVLEVELA specified, using default value of {0}".format(hvb))
+    else:
+        print("Using HVLEVELB = {0}".format(hvb))
     
     exts = {}
     i = 1
@@ -135,7 +230,9 @@ def parse_gsagtab(gsagtab, sdq, sdqflags, date, hva, hvb):
     
     if not date:
         date = 57822.0
-        print("WARNING: no DATE specified, using default value of {0}".format(str(date)))
+        print("WARNING: no date specified, using default value of {0}".format(str(date)))
+    else:
+        print("Using date (MJD) = {0}".format(date))
 
     data_dict = {}
     for segment in exts.keys():
@@ -159,7 +256,34 @@ def parse_gsagtab(gsagtab, sdq, sdqflags, date, hva, hvb):
 #-----------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------#
 
-def plot_reffile(data_dict, bpixtab, gsagtab, sdq, sdqflags):
+def plot_reffile(data_dict, bpixtab, gsagtab, sdq, sdqflags, save):
+    '''
+    Plot the bad pixel regions (BPIXTAB and/or GSAGTAB) for each segment.
+
+    Parameters:
+    -----------
+        bpixtab : str
+            The BPIXTAB to plot.
+        gsagtab : str
+            The GSAGTAB to plot.
+        sdq : Bool
+            Switch to plot only SDQ regions.
+        sdqflags : int
+            Serious Data Quality Flags
+        date : float
+            MJD date to use when selecting DQ regions in the GSAGTAB.
+        hva : int
+            HVLEVELA to use when selecting extensionf of the GSAGTAB.
+        hvb : int
+            HVLEVELB to use when selecting extensionf of the GSAGTAB.
+        save : Bool
+            Switch to save figure as png
+             
+    Returns:
+    --------
+        Nothing
+    '''
+
     # Initialize figure and define the subplots using gridspec
     fig = pl.figure(figsize=(17,12))
     pl.subplots_adjust(hspace=0.1)    
@@ -197,6 +321,7 @@ def plot_reffile(data_dict, bpixtab, gsagtab, sdq, sdqflags):
         
         # Print SDQFLAGS value if applicable.
         if sdq:
+            print("Using SDQFLAGS = {0}".format(sdqflags))
             ax.annotate("SDQFLAGS={0}".format(sdqflags), 
                         xy=(0.01, 0.9),
                         xycoords="axes fraction", 
@@ -210,9 +335,13 @@ def plot_reffile(data_dict, bpixtab, gsagtab, sdq, sdqflags):
     cax = pl.axes([0.92, 0.2, 0.02, 0.6])
     cbar = fig.colorbar(p, cax=cax, boundaries=bounds, ticks=DQs)
     cax.set_ylabel("DQ Flag")
-    
-    pl.show()
-    this = input("press enter to continue")
+
+    if save:
+        figname = "bad_regions.png"
+        fig.savefig(figname, bbox_inches="tight", dpi=200)
+        print("Saved {0}".format(figname))
+    else:   
+        pl.show()
 
 #-----------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------#
@@ -230,7 +359,8 @@ if __name__ == "__main__":
     parser.add_argument("-sdq", 
                         dest="sdq", 
                         action="store_true", 
-                        default=False, help="Switch to plot only SDQ")
+                        default=False, 
+                        help="Switch to plot only SDQ")
     parser.add_argument("-sdqflags", 
                         dest="sdqflags", 
                         default=8376,
@@ -247,18 +377,33 @@ if __name__ == "__main__":
                         dest="hvb",
                         default=None,
                         help="HVLEVELB value of interest in GSAGTAB")
+    parser.add_argument("-save",
+                        dest="save",
+                        action="store_true",
+                        default=False,
+                        help="Switch to save figure.")
     
     args = parser.parse_args()
     bpixtab = args.bpixtab
     gsagtab = args.gsagtab
     sdq = args.sdq
     sdqflags = int(args.sdqflags)
-    date = args.date
-    hva = args.hva
-    hvb = args.hvb
+    if args.date: 
+        date = float(args.date)
+    else:
+        date = args.date
+    if args.hva:
+        hva = int(args.hva)
+    else:
+        hva = args.hva
+    if args.hvb:
+        hvb = int(args.hvb)
+    else:
+        hvb = args.hvb
+    save = args.save
 
     # Define colormap
     cmap, bounds, norm = define_cmap()
 
     data_dict = get_reffile_info(bpixtab, gsagtab, sdq, sdqflags, date, hva, hvb)
-    plot_reffile(data_dict, bpixtab, gsagtab, sdq, sdqflags)
+    plot_reffile(data_dict, bpixtab, gsagtab, sdq, sdqflags, save)

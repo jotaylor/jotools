@@ -352,7 +352,7 @@ def plot_reffile(data_dict, bpixtab, gsagtab, hvs, date, sdq, sdqflags, cmap, bo
         elif gsagtab:
             refname = "{0} (date={1})".format(gsagtab, date)
         ax.set_title("{0} {1} DQ Flags".format(refname, segment))
-        ax.set_ylabel("YFULL")
+        ax.set_ylabel("YCORR")
         
         # Print SDQFLAGS value if applicable.
         if sdq:
@@ -370,7 +370,7 @@ def plot_reffile(data_dict, bpixtab, gsagtab, hvs, date, sdq, sdqflags, cmap, bo
 
         # Set axis labels
     ax_list = fig.axes
-    ax_list[-1].set_xlabel("XFULL")
+    ax_list[-1].set_xlabel("XCORR")
     
     # Create an axis for the colorbar so it encompasses *all* subplots.
     cax = pl.axes([0.92, 0.2, 0.02, 0.6])

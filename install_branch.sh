@@ -4,8 +4,10 @@
 cwd="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # first and second input arguments
-direc=$1
+direc0=$1
 branch=$2
+# get rid of trailing slash if there is on
+direc=${direc%/}
 
 # go to git directory and checkout branch
 cd $direc

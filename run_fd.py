@@ -3,7 +3,7 @@
 Run fitsdiff on two sets of data.
 
 Use: 
-    python fitsdiff.py -dir /path/to/dir1 -dir2 /path/to/dir2 -p 
+    python fitsdiff.py -dir1 /path/to/dir1 -dir2 /path/to/dir2 -p 
 '''
 
 
@@ -13,6 +13,7 @@ import subprocess
 import multiprocessing as mp
 import argparse
 from functools import partial
+from astropy.io import fits
 
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
@@ -31,12 +32,15 @@ def parallel(fd_files, fd_options):
             
     Returns:
     --------
-        Nothing
+        fd_output : list
+            List of output from individual fitsdiff processes. 
     '''
     
     fd_func = partial(run_fd, fd_options)
     pool = mp.Pool(processes=10)
-    pool.map(fd_func, fd_files)
+    fd_output = pool.map(fd_func, fd_files)
+
+    return fd_output
 
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
@@ -62,30 +66,40 @@ def run_fd(fd_options, item):
     logname = "{0}.log".format(basename)
     with open(logname, "w") as log:
         try:
-            subprocess.call("fitsdiff -c {0} -k {1} -d {2} {3} {4}".format(fd_options["ignore_comments"], fd_options["ignore_keywords"], fd_options["precision"], item, os.path.join(fd_options["dir2"], basename)), shell=True, stdout=log)
+            fd = fits.diff.FITSDiff(item, 
+                                    os.path.join(fd_options["dir2"], basename),
+                                    ignore_keywords = fd_options["ignore_keywords"],
+                                    ignore_comments = fd_options["ignore_comments"],
+                                    tolerance = fd_options["precision"])
         except Exception as e:
             print("Something went wrong with {}:\n{}\n".format(item,e))
 
+    return fd.report()
+
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
 
-def concat_files(fd_files):
+def write_log(fd_output, outfile):
     '''
+    Write output of fitsdiff to logfile.
+
     Parameters:
     -----------
-    fd_files : list
-        List of files that will serve as the basis for comparison. These
-        are from dir1.
-    
-    Returns:
-    --------
-        Nothing
+        fd_output : list
+            List of output from individual fitsdiff processes.
+        outfile : str
+            Name of file to write fitsdiff results to. 
     '''
-    lognames = [os.path.basename(x)+".log" for x in fd_files]
-    with open("concat_fd.log", "w") as outfile:
-        for logname in lognames:
-            with open(logname) as infile:
-                outfile.write(infile.read())
+
+    if os.path.exists(outfile):
+        print("Overwriting {0}!".format(outfile))
+        os.remove(outfile)
+    else:
+        print("Writing output to {0}".format(outfile))
+
+    with open(outfile, "a") as f:
+        for diff in fd_output:
+            f.write(diff)
 
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
@@ -104,23 +118,23 @@ if __name__ == "__main__":
     parser.add_argument("-keywords", dest="ignore_keywords", type=str,
                         default="filename,date,iraf-tlm,cal_ver,proctime,checksum,datasum,opus_ver,ureka_v",
                         help="Keywords to ignore in fitsdiff") 
+    parser.add_argument("-o", "--out", dest="outfile", default="fd_output.log",
+                        help="Name of output fitsdiff log")
     args = parser.parse_args()
     
-#    all_files = glob.glob(os.path.join(args.dir1, "*fits"))
+    all_files = glob.glob(os.path.join(args.dir1, "*fits"))
     all_exts = ["corrtag", "counts", "lampflash", "x1d", "x1dsum", 
                 "x1dsum1", "x1dsum2", "x1dsum3", "x1dsum4", "flt"]
     
     fd_files = [x for x in all_files if os.path.basename(x).split("_")[1].split(".")[0] in all_exts]
 
-    fd_files = all_files
-        
-    fd_options = {"dir2":args.dir2, "precision":args.precision, "ignore_comments":args.ignore_comments, "ignore_keywords":args.ignore_keywords} 
+    fd_options = {"dir2":args.dir2, "precision":float(args.precision), "ignore_comments":args.ignore_comments, "ignore_keywords":args.ignore_keywords} 
     
     if args.prl:
-        parallel(fd_files, fd_options)
+        fd_output = parallel(fd_files, fd_options)
     else:
+        #untested
         for item in fd_files:
-            run_fd(fd_options, item)
+            fd_output = run_fd(fd_options, item)
 
-    concat_files(fd_files)
-
+    write_log(fd_output, args.outfile)

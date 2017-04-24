@@ -39,7 +39,6 @@ def parallel(fd_files, fd_options):
     fd_func = partial(run_fd, fd_options)
     pool = mp.Pool(processes=10)
     fd_output = pool.map(fd_func, fd_files)
-
     return fd_output
 
 #------------------------------------------------------------------------------#
@@ -113,14 +112,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", dest="prl", action="store_true", default=False,
                         help="Switch to parallelize fitsdiff process")
-    parser.add_argument("-dir1", dest="dir1", help="First directory to compare")
-    parser.add_argument("-dir2", dest="dir2", help="Second directory to compare")
-    parser.add_argument("-precision", dest="precision", type=str,
+    parser.add_argument("--dir1", dest="dir1", help="First directory to compare")
+    parser.add_argument("--dir2", dest="dir2", help="Second directory to compare")
+    parser.add_argument("--precision", dest="precision", type=str,
                         default="2.e-7", help="Precision in fitsdiff")
-    parser.add_argument("-comments", dest="ignore_comments", type=str,
+    parser.add_argument("--comments", dest="ignore_comments", type=str,
                         default="gyromode,stdcfff,stdcffp,checksum,datasum",
                         help = "Comments to ignore in fitsdiff")
-    parser.add_argument("-keywords", dest="ignore_keywords", type=str,
+    parser.add_argument("--keywords", dest="ignore_keywords", type=str,
                         default="filename,date,iraf-tlm,cal_ver,proctime,checksum,datasum,opus_ver,ureka_v",
                         help="Keywords to ignore in fitsdiff") 
     parser.add_argument("-o", "--out", dest="outfile", default="fd_output.log",
@@ -140,8 +139,8 @@ if __name__ == "__main__":
     if args.prl:
         fd_output = parallel(fd_files, fd_options)
     else:
-        #untested
+        fd_output = ""
         for item in fd_files:
-            fd_output = run_fd(fd_options, item)
+            fd_output += run_fd(fd_options, item)
 
     write_log(fd_output, args.outfile)

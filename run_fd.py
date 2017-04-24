@@ -3,7 +3,7 @@
 Run fitsdiff on two sets of data.
 
 Use: 
-    python fitsdiff.py -dir1 /path/to/dir1 -dir2 /path/to/dir2 -p 
+    python fitsdiff.py -dir1 /path/to/dir1 -dir2 /path/to/dir2 
 '''
 
 
@@ -59,20 +59,25 @@ def run_fd(fd_options, item):
 
     Returns:
     --------
-        Nothing
+        fd.report()
     '''
     
     basename = os.path.basename(item)
-    logname = "{0}.log".format(basename)
-    with open(logname, "w") as log:
-        try:
-            fd = fits.diff.FITSDiff(item, 
-                                    os.path.join(fd_options["dir2"], basename),
-                                    ignore_keywords = fd_options["ignore_keywords"],
-                                    ignore_comments = fd_options["ignore_comments"],
-                                    tolerance = fd_options["precision"])
-        except Exception as e:
-            print("Something went wrong with {}:\n{}\n".format(item,e))
+    file2 = os.path.join(fd_options["dir2"], basename)
+    if not os.path.exists(file2):
+        print("Expected {0}, but it does not exist!".format(file2))
+        return ""
+
+    try:
+        print("Running on {0}".format(item))
+        fd = fits.diff.FITSDiff(item, 
+                                os.path.join(fd_options["dir2"], basename),
+                                ignore_keywords = fd_options["ignore_keywords"],
+                                ignore_comments = fd_options["ignore_comments"],
+                                tolerance = fd_options["precision"])
+    except Exception as e:
+        print("Something went wrong with {}:\n{}\n".format(item,e))
+        return ""
 
     return fd.report()
 
@@ -128,7 +133,9 @@ if __name__ == "__main__":
     
     fd_files = [x for x in all_files if os.path.basename(x).split("_")[1].split(".")[0] in all_exts]
 
-    fd_options = {"dir2":args.dir2, "precision":float(args.precision), "ignore_comments":args.ignore_comments, "ignore_keywords":args.ignore_keywords} 
+    ignore_keywords = [x for x in args.ignore_keywords.split(",")]
+    ignore_comments = [x for x in args.ignore_comments.split(",")]
+    fd_options = {"dir2":args.dir2, "precision":float(args.precision), "ignore_comments":ignore_comments, "ignore_keywords":ignore_keywords} 
     
     if args.prl:
         fd_output = parallel(fd_files, fd_options)

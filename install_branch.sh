@@ -1,22 +1,23 @@
 #!/bin/bash
 
-# get current working directory
-cwd="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Get current working directory
+cwd=$(pwd)
 
-# first and second input arguments
+# Assign first and second input arguments
 direc0=$1
 branch=$2
-# get rid of trailing slash if there is on
+# Get rid of trailing slash if there is one
 direc=${direc0%/}
 
-# go to git directory and checkout branch
+# Go to git directory and checkout branch
 cd $direc
+git fetch
 git checkout $branch
 git pull
 
-# install calcos
+# Install calcos
 rm -rf build/
-rm lib/calcos/version.py
+rm -f lib/calcos/version.py
 export PYTHONPATH="${direc}/install/lib/python"
 export lref="/grp/hst/cdbs/lref/"
 python ./setup.py build

@@ -28,6 +28,19 @@ class DataDiff(object):
 #-----------------------------------------------------------------------------#
 
 def diff_tables(fd_dict, dir1, dir2):
+    """
+    Calculate quantitative differences in HDU tables.  
+
+    Arguments:
+        fd_dict (dict): Dictionary with fitsdiff info.
+        dir1 (str): Directory 1 of data to compare.
+        dir2 (str): Directory 2 of data to compare.
+
+    Returns:
+        fd_dict (dcit): Updated dictionary with fitsdiff info including 
+            quantitative table differences.
+    """
+    
     for filename in fd_dict.keys():
         opened = False
         for str_ext in fd_dict[filename]:
@@ -73,6 +86,19 @@ def diff_tables(fd_dict, dir1, dir2):
 #-----------------------------------------------------------------------------#
 
 def diff_images(fd_dict, dir1, dir2):
+    """
+    Calculate quantitative differences in counts or flt images. 
+
+    Arguments:
+        fd_dict (dict): Dictionary with fitsdiff info.
+        dir1 (str): Directory 1 of data to compare.
+        dir2 (str): Directory 2 of data to compare.
+
+    Returns:
+        fd_dict (dcit): Updated dictionary with fitsdiff info including 
+            quantitative image differences.
+    """
+
     for filename in fd_dict.keys():
         opened = False
         for str_ext in fd_dict[filename].keys():
@@ -113,16 +139,30 @@ def diff_images(fd_dict, dir1, dir2):
 #-----------------------------------------------------------------------------#
 
 def parse_fd(logfile):
+    """
+    Parse fitsdiff output, returning a dictionary sorted by filename.
+
+    Arguments:
+        logfile (str): Path of text output from fitsdiff.
+
+    Returns:
+        fd_dict (dict): Dictionary with fitsdiff info.
+        dir1 (str): Directory 1 of data being compared.
+        dir2 (str): Directory 2 of data being compared.
+    """
+    
     filename = "dummy"
     fd_dict = {}
     lines = open(logfile).read().splitlines()
     dir1 = os.path.dirname(lines[2].split()[1])
     dir2 = os.path.dirname(lines[3].split()[1])
+    
     for i in range(len(lines)-1):
         # First of all, determine the filename.
         if dir1 in lines[i]:
         #if "a: " in lines[i]:
             full_filename = lines[i].split()[1]
+            # If file doesn't exist, it migiht be because it's been zipped.
             if not os.path.exists(full_filename):
                 full_filename += ".gz"
                 if not os.path.exists(full_filename):
@@ -130,11 +170,11 @@ def parse_fd(logfile):
             filename = os.path.basename(full_filename)
             continue
          
-        # Skip trailer files    
+        # Skip trailer files.    
         if "trl.fits" in filename:
             continue
         
-        # Keep track of which extension we're looking at    
+        # Keep track of which FITS extension we're looking at. 
         if "HDU" in lines[i]:
             if "Primary HDU" in lines[i]:
                 ext = "Ext0"
@@ -186,6 +226,8 @@ def parse_fd(logfile):
                     aval = lines[i+1].split("> ")[1]
                     bval = lines[i+2].split("> ")[1]
 
+            # Given a keyword that differs, loop through lines until you
+            # find the a and b values. Determine if they are floats or not.
             else:
                 keyword = lines[i].split()[1]
                 j = 1
@@ -209,6 +251,8 @@ def parse_fd(logfile):
                     print("ruh roh")
                 continue
         
+        # If Columns differ, make a key for it and it will be quantified
+        # later in diff_table().
         if "Column" in lines[i]:
             col = lines[i].split()[1]
             if not "Columns" in fd_dict[filename][ext].keys():
@@ -216,6 +260,9 @@ def parse_fd(logfile):
             elif col not in fd_dict[filename][ext]["Columns"].keys():
                 fd_dict[filename][ext]["Columns"][col] = {}
             continue
+        
+        # If images differ, make a key for it and it will be quantified
+        # later in diff_image().
         if "pixels" in lines[i]:
             fd_dict[filename][ext]["ImageDiff"] = {}
         
@@ -225,6 +272,18 @@ def parse_fd(logfile):
 #-----------------------------------------------------------------------------#
 
 def get_diffs(logfile):
+    """
+    Run workhorse functions. 
+
+    Arguments:
+        logfile (str): Path of text output from fitsdiff.
+
+    Returns:
+        fd_dict (dict): Dictionary with fitsdiff info.
+        dir1 (str): Directory 1 of data being compared.
+        dir2 (str): Directory 2 of data being compared.
+    """
+    
     fd_dict, dir1, dir2 = parse_fd(logfile) 
     fd_dict = diff_tables(fd_dict, dir1, dir2)
     fd_dict = diff_images(fd_dict, dir1, dir2)

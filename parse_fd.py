@@ -23,61 +23,6 @@ class DataDiff(object):
             if not "Keywords" in self.avals[ext].keys():
                 print("No keywords in {0} Extension {1}".format(self.filename, ext))
                 continue 
-#            for keyword in self.avals[ext]["Keywords"]:
-
-
-#avals = {"Ext0": {"Keywords": {a: aval, b: bval, c: cval...},
-#                  "Image": [....]
-#                  "Columns": {a: ..., b: ..., c: ...}},
-#                  ...}
-# For each loop of parse_fd it should output a list that looks like
-#  [filename, {}, {}] where the first item is the filename, the 2nd is a dict
-#  of all a vals, the 3rd a dict of all b vals.
-#  I would feed this list into my class DataDiff.
-#    .a[ext]...
-#    .b[ext]...
-#  each DataDiff object gets curated into master list of all DataDiff objects
-#  The I would have methods that do things to each object like give max diffs 
-#  etc.
-
-#-----------------------------------------------------------------------------#
-#-----------------------------------------------------------------------------#
-#def diff_tables(filenames, columns, dir1, dir2):
-#    # Ensure everything is in list form.
-#    if isinstance(filenames, string_types):
-#        filenames = [filenames]
-#    if isinstance(columns[0], string_types):
-#        columns = [columns]
-#
-#    for i in range(len(filenames)):
-#        file1 = os.path.join(dir1, filenames[i])
-#        file2 = os.path.join(dir2, filenames[i])
-#        hdu1 = pf.open(file1)
-#        hdu2 = pf.open(file2)
-#        hdr1 = hdu1[1].header
-#        
-#        # If the exposure time is 0, don't continue!
-#        try:
-#            if hdr1["exptime"] == 0.0:
-#                continue
-#        except KeyError:
-#            pass
-#        
-#        for ext in range(1,len(hdu1)):
-#            for column in columns[i]:
-#                if column in hdu1[ext].data.columns.names:
-#                    if not any(badtype in hdu1[ext].columns[column].format for badtype in ["L","A"]):
-#                        print(hdu1[ext].columns[column].format)
-#                        diff = hdu1[ext].data[column].flatten() - hdu2[ext].data[column].flatten()
-#                        maxdiff = max(abs(diff))
-#                        print("Max diff for {0:26s} column {1:21s} is {2}".format(filenames[i],column,maxdiff))
-#                    else:
-#                        for j in range(len(hdu1[ext].data[column].flatten())):
-#                            if hdu1[ext].data[column].flatten()[j] != hdu2[ext].data[column].flatten()[j]:
-#                                print("Max diff for {0:26s} column {1:21s} is {2} vs. {3}".format(filenames[i],column,hdu1[ext].data[column].flatten()[j],hdu2[ext].data[column].flatten()[j]))
-#
-#        hdu1.close()
-#        hdu2.close()
 
 #-----------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------#
@@ -115,6 +60,8 @@ def diff_tables(fd_dict, dir1, dir2):
                     percdiff = max(abs((hdu2[ext].data[column].flatten() - hdu1[ext].data[column].flatten())/((hdu2[ext].data[column].flatten() + hdu2[ext].data[column].flatten())/2.)))
                     fd_dict[filename][str_ext]["Columns"][column]["PercDiff"] = percdiff 
                     fd_dict[filename][str_ext]["Columns"][column]["NumDiff"] = len(np.where(abs(diff.flatten()) > 0.0))
+                    fd_dict[filename][str_ext]["Columns"][column]["Mean1"] = np.average(hdu1[ext].data[column])
+                    fd_dict[filename][str_ext]["Columns"][column]["Mean2"] = np.average(hdu2[ext].data[column])
 
         if opened:        
             hdu1.close()
@@ -124,92 +71,7 @@ def diff_tables(fd_dict, dir1, dir2):
 
 #-----------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------#
-#def diff_images(filenames, dir1, dir2):
-#    if isinstance(filenames, string_types):
-#        filenames = [filenames]
-#    
-#    files_seen = []
-#    for i in range(len(filenames)):
-#        if filenames[i] not in files_seen:
-#            files_seen.append(filenames)
-#        else:
-#            continue
-#        
-#        file1 = os.path.join(dir1, filenames[i])
-#        file2 = os.path.join(dir2, filenames[i])
-#        hdu1 = pf.open(file1)
-#        hdu2 = pf.open(file2)
-#        hdr1 = hdu1[1].header
-#        if hdr1["exptime"] == 0.0:
-#            continue
-#        
-#        for ext in range(1,len(hdu1)):
-#            data1 = hdu1[ext].data.flatten()
-#            data2 = hdu2[ext].data.flatten()
-#            diff = abs(data2 - data1)
-#            maxdiff = max(diff)
-#            percdiff = max(abs((data2 - data1)/((data2 + data1)/2.)))
-#            inds = np.where(diff > 0.0)
-#            num_diff = len(inds)
-#            if maxdiff != 0.0:
-#                print("Max diff for {:26s} {} is {}".format(filenames[i],ext,maxdiff))
-#                print("Max % diff for {:26s} {} is {}".format(filenames[i],ext,percdiff))
-#                print("    Loc of diff elems is {}".format(inds)) 
-#                print("    Number of diff elems is {}\n".format(num_diff))
-#        
-#
-##        orig1 = hdu1[1].data
-##        orig2 = hdu2[1].data
-##        data1_sci = hdu1[1].data.flatten()
-##        data2_sci = hdu2[1].data.flatten()
-##        diff = data2_sci - data1_sci
-##        diff2 = abs(orig2 - orig1)
-##        maxdiff = max(abs(diff))
-##        percdiff = max(abs((data2_sci - data1_sci)/((data2_sci + data1_sci)/2.)))
-##        inds = np.where(diff2 > 0.0)
-##        num_diff = len(inds)
-##        if maxdiff != 0.0:
-##            print("Max diff for {:26s} SCI is {}".format(filenames[i],maxdiff))
-##            print("Max % diff for {:26s} SCI is {}".format(filenames[i],percdiff))
-##            print("    Loc of diff elems is {}".format(inds)) 
-##            print("    Number of diff elems is {}\n".format(num_diff))
-##        
-##        data1_err = hdu1[2].data.flatten()
-##        data2_err = hdu2[2].data.flatten()
-##        orig1 = hdu1[2].data
-##        orig2 = hdu1[2].data
-##        diff = data2_err - data1_err
-##        diff2 = abs(orig2 - orig1)
-##        maxdiff = max(abs(diff))
-##        percdiff = max(abs((data2_err - data1_err)/((data2_err + data1_err)/2.)))
-##        inds = np.where(abs(diff2) > 0.0)
-##        num_diff = len(inds)
-##        if maxdiff != 0.0:
-##            print("Max diff for {:26s} ERR is {}".format(filenames[i],maxdiff))
-##            print("Max percent diff for {:26s} ERR is {}".format(filenames[i],percdiff))
-##            print("    Loc of diff elems is {}".format(inds)) 
-##            print("    Number of diff elems is {}\n".format(num_diff))
-##
-##        data1_dq = hdu1[3].data.flatten()
-##        data2_dq = hdu2[3].data.flatten()
-##        orig1 = hdu1[3].data
-##        orig2 = hdu1[3].data
-##        diff = data2_dq - data1_dq
-##        diff2 = abs(orig2 - orig1)
-##        maxdiff = max(abs(diff))
-##        percdiff = max(abs((data2_dq - data1_dq)/((data2_dq + data1_dq)/2.)))
-##        inds = np.where(abs(diff2) > 0.0)
-##        num_diff = len(inds)
-##        if maxdiff != 0.0:
-##            print("Max diff for {:26s} DQ is {}".format(filenames[i],maxdiff))
-##            print("Max percent diff for {:26s} DQ is {}".format(filenames[i],percdiff))
-##            print("    Loc of diff elems is {}".format(inds)) 
-##            print("    Number of diff elems is {}\n".format(num_diff))
-#        hdu1.close()
-#        hdu2.close()        
-        
-#-----------------------------------------------------------------------------#
-#-----------------------------------------------------------------------------#
+
 def diff_images(fd_dict, dir1, dir2):
     for filename in fd_dict.keys():
         opened = False
@@ -238,6 +100,8 @@ def diff_images(fd_dict, dir1, dir2):
                 fd_dict[filename][str_ext]["ImageDiff"]["MeanDiff"] = np.average(diff.flatten())
                 fd_dict[filename][str_ext]["ImageDiff"]["PercDiff"] = max(abs((hdu2[ext].data.flatten() - hdu1[ext].data.flatten())/((hdu2[ext].data.flatten() + hdu2[ext].data.flatten())/2.)))
                 fd_dict[filename][str_ext]["ImageDiff"]["NumDiff"] = len(np.where(abs(diff.flatten()) > 0.0))
+                fd_dict[filename][str_ext]["ImageDiff"]["Mean1"] = np.average(hdu1[ext].data)
+                fd_dict[filename][str_ext]["ImageDiff"]["Mean2"] = np.average(hdu2[ext].data)
 
         if opened:
             hdu1.close()
@@ -258,7 +122,12 @@ def parse_fd(logfile):
         # First of all, determine the filename.
         if dir1 in lines[i]:
         #if "a: " in lines[i]:
-            filename = os.path.basename(lines[i].split()[1])
+            full_filename = lines[i].split()[1]
+            if not os.path.exists(full_filename):
+                full_filename += ".gz"
+                if not os.path.exists(full_filename):
+                    print("WARNING: File does not exist (zipped or unzipped): {0}".format(full_filename))
+            filename = os.path.basename(full_filename)
             continue
          
         # Skip trailer files    
@@ -357,15 +226,9 @@ def parse_fd(logfile):
 
 def get_diffs(logfile):
     fd_dict, dir1, dir2 = parse_fd(logfile) 
-#    for filename in fd_dict.keys():
-#        for ext in fd_dict[filename].keys():
-#            if "Columns" in fd_dict[filename][ext].keys():
-#                diff_tables(filename, fd_dict[filename][ext]["Columns"], dir1, dir2)
-#            elif "ImageDiff" in fd_dict[filename][ext].keys():
-#                diff_images(filename, dir1, dir2) 
-
     fd_dict = diff_tables(fd_dict, dir1, dir2)
     fd_dict = diff_images(fd_dict, dir1, dir2)
+    
     return fd_dict, dir1, dir2
 
 #-----------------------------------------------------------------------------#
@@ -378,4 +241,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     logfile = args.logfile
    
-    get_diffs(logfile) 
+    fd_dict, dir1, dir2 = get_diffs(logfile) 

@@ -40,6 +40,8 @@ def diff_tables(fd_dict, dir1, dir2):
         fd_dict (dcit): Updated dictionary with fitsdiff info including 
             quantitative table differences.
     """
+
+    print("Comparing HDU Tables in fitsdiff log... this may take several minutes")
     
     for filename in fd_dict.keys():
         opened = False
@@ -99,6 +101,8 @@ def diff_images(fd_dict, dir1, dir2):
             quantitative image differences.
     """
 
+    print("Comparing HDU images in fitsdiff log... this may take several minutes...")
+
     for filename in fd_dict.keys():
         opened = False
         for str_ext in fd_dict[filename].keys():
@@ -150,6 +154,8 @@ def parse_fd(logfile):
         dir1 (str): Directory 1 of data being compared.
         dir2 (str): Directory 2 of data being compared.
     """
+
+    print("Parsing results of fitsdiff log {} and storing results in dictionary".format(logfile))
     
     filename = "dummy"
     fd_dict = {}
@@ -293,11 +299,29 @@ def get_diffs(logfile):
 #-----------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------#
 
+def pickle_diffs(fd_dict, pkl_file=None):
+    import pickle
+    import datetime
+    if pkl_file is None:
+        now = datetime.datetime.now()
+        pkl_file = "fd_{}.p".format(now.strftime("%Y%m%d_%M%S"))
+    with open(pkl_file, "wb") as f:
+        pickle.dump(fd_dict, f)
+
+    print("Wrote pickle file {}".format(pkl_file))
+
+#-----------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------#
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-l", dest="logfile", default="new_retrieval.log",
                         help="Name of output ASCII files")
+    parser.add_argument("--pkl", dest="pkl_data", action="store_true",
+                        default=False, help="Switch to pickle FD results")
     args = parser.parse_args()
     logfile = args.logfile
    
-    fd_dict, dir1, dir2 = get_diffs(logfile) 
+    fd_dict, dir1, dir2 = get_diffs(logfile)
+    if args.pkl_data:
+        pickle_diffs() 

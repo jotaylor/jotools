@@ -9,20 +9,22 @@ from six import string_types
 import os
 import argparse
 
-#-----------------------------------------------------------------------------#
-#-----------------------------------------------------------------------------#
+"""
+Parse the output of fitsdiff and store the results in a dictionary. 
+If desired, calculate the quantitative differences in the HDU tables
+and HDU images (this can take ~hours when there are >100 datasets). 
 
-class DataDiff(object):
-    def __init__(self, filename, avals, bvals):
-        self.filename = filename
-        self.avals = avals
-        self.bvals = bvals
-
-    def diff_keys(self):
-        for ext in self.avals.keys():
-            if not "Keywords" in self.avals[ext].keys():
-                print("No keywords in {0} Extension {1}".format(self.filename, ext))
-                continue 
+Usage:
+From the command line:
+    python parse_fd.py -l fitsdiff.log --pkl
+    (by default, it will compare the HDU tables & images)
+From ipython (recommended):
+    import parse_fd
+    fd_dict, dir1, dir2 = parse_fd.parse_fd(logfile)
+    fd_dict = parse_fd.diff_tables(fd_dict, dir1, dir2)
+    fd_dict = parse_fd.diff_images(fd_dict, dir1, dir2)
+    parse_fd.pickle_diffs(fd_dict, "mydiffs.p") 
+"""
 
 #-----------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------#

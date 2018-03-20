@@ -46,7 +46,7 @@ def parallel(fd_files, fd_options):
 
 def run_fd(fd_options, item):
     '''
-    Run the fitsdiff command-line command using subprocess.
+    Run fitsdiff using astropy.
 
     Parameters:
     -----------

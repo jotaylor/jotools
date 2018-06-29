@@ -32,7 +32,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from astropy.io import fits as pf
 import numpy as np
 
-DQs = np.array([2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384])
+DQs = np.array([1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384])
 
 #-----------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------#
@@ -157,7 +157,7 @@ def parse_bpixtab(bpixtab, sdq, sdqflags):
     # Open file and get the 1st data extension.
     with pf.open(bpixtab) as hdulist:
         data = hdulist[1].data
-    segments = list(set(data["segment"]))
+    segments = list(set(data["ccdchip"]))
     
     # Curate dictionary with DQ information for each segment.
     data_dict = {}
@@ -167,15 +167,28 @@ def parse_bpixtab(bpixtab, sdq, sdqflags):
                               "dx": [],
                               "dy": [],
                               "dq": []}
-        inds = np.where(data["segment"] == segment)[0]
+        inds = np.where(data["ccdchip"] == segment)[0]
 
         # Get only DQ value sin SDQFLAGS if applicable.        
         if sdq:
-            inds = np.where(data[inds]["dq"]&sdqflags != 0)[0]
+            inds = np.where(data[inds]["value"]&sdqflags != 0)[0]
         
-        for col in ["lx", "ly", "dx", "dy", "dq"]:
-            data_dict[segment][col] = data[inds][col]
+        data_dict[segment]["lx"] = data[inds]["pix1"]
+        data_dict[segment]["ly"] = data[inds]["pix2"]
+        data_dict[segment]["dq"] = data[inds]["value"]
+        dx = []
+        dy = []
+        for i in inds:
+            if data[i]["axis"] == 2:
+                dx.append(data[i]["length"])
+                dy.append(1)
+            else:
+                dy.append(data[i]["length"])
+                dx.append(1)
+        data_dict[segment]["dx"] = dx
+        data_dict[segment]["dy"] = dy
 
+#    import pdb; pdb.set_trace()
     return data_dict
 
 #-----------------------------------------------------------------------------#
@@ -343,15 +356,15 @@ def plot_reffile(data_dict, bpixtab, gsagtab, hvs, date, sdq, sdqflags, cmap, bo
         p = PatchCollection(patches, edgecolors="none", cmap=cmap, norm=norm, alpha=0.6)
         p.set_array(np.array(colors))
         ax.add_collection(p) 
-        ax.set_xlim(500, 15500)
-        ax.set_ylim(200, 830)
+        ax.set_xlim(-5, 2055)
+        ax.set_ylim(-5, 4100)
         if bpixtab and gsagtab:
             refname = "{0} and {1} (date={2})".format(bpixtab, gsagtab, date)
         elif bpixtab:
             refname = bpixtab
         elif gsagtab:
             refname = "{0} (date={1})".format(gsagtab, date)
-        ax.set_title("{0} {1} DQ Flags".format(refname, segment))
+        ax.set_title("{0} CCDCHIP{1} DQ Flags".format(refname, segment))
         ax.set_ylabel("YCORR")
         
         # Print SDQFLAGS value if applicable.

@@ -181,10 +181,10 @@ def parse_bpixtab(bpixtab, sdq, sdqflags):
         for i in inds:
             if data[i]["axis"] == 2:
                 dx.append(data[i]["length"])
-                dy.append(1)
+                dy.append(0)
             else:
                 dy.append(data[i]["length"])
-                dx.append(1)
+                dx.append(0)
         data_dict[segment]["dx"] = dx
         data_dict[segment]["dy"] = dy
 
@@ -332,32 +332,27 @@ def plot_reffile(data_dict, bpixtab, gsagtab, hvs, date, sdq, sdqflags, cmap, bo
         Nothing
     '''
 
+    n = len(DQs)
+    colors = dict(zip(DQs, pl.cm.gist_ncar(np.linspace(0,1,n))))
+    
     # Initialize figure and define the subplots using gridspec
     fig = pl.figure(figsize=(17,12))
     pl.subplots_adjust(hspace=0.1)    
-    gs = gridspec.GridSpec(2,1, height_ratios=[1,1])
+    gs = gridspec.GridSpec(len(data_dict.keys()), 1, height_ratios=[1,1])
     
     # Loop over each segment (could be >2 if NUV)
     # Curate list of each patch (rectangular DQ region) and color (DQ flag)).
     for i, segment in enumerate(data_dict):
-        patches = []
-        colors = []
         ax = pl.subplot(gs[i])
+        for j in range(len(data_dict[segment]["lx"])):
+            ax.plot((data_dict[segment]["lx"][j], data_dict[segment]["lx"][j] + data_dict[segment]["dx"][j]), 
+                    (data_dict[segment]["ly"][j], data_dict[segment]["ly"][j] + data_dict[segment]["dy"][j]), 
+                    linewidth=5,
+                    linestyle="solid",
+                    color=colors[data_dict[segment]["dq"][j]])
     
-        for j in np.arange(len(data_dict[segment]["lx"])):
-            r = Rectangle((data_dict[segment]["lx"][j], data_dict[segment]["ly"][j]),
-                          data_dict[segment]["dx"][j],
-                          data_dict[segment]["dy"][j],)
-            patches.append(r)
-            colors.append(data_dict[segment]["dq"][j])
-    
-        # For each segment, create a PatchCollection with all patches
-        # (DQ regions) and plot it.
-        p = PatchCollection(patches, edgecolors="none", cmap=cmap, norm=norm, alpha=0.6)
-        p.set_array(np.array(colors))
-        ax.add_collection(p) 
-        ax.set_xlim(-5, 2055)
-        ax.set_ylim(-5, 4100)
+        ax.set_xlim(-50, 4150)
+        ax.set_ylim(-50, 2100)
         if bpixtab and gsagtab:
             refname = "{0} and {1} (date={2})".format(bpixtab, gsagtab, date)
         elif bpixtab:
@@ -387,7 +382,9 @@ def plot_reffile(data_dict, bpixtab, gsagtab, hvs, date, sdq, sdqflags, cmap, bo
     
     # Create an axis for the colorbar so it encompasses *all* subplots.
     cax = pl.axes([0.92, 0.2, 0.02, 0.6])
-    cbar = fig.colorbar(p, cax=cax, boundaries=bounds, ticks=DQs)
+    sm = pl.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, cax=cax, boundaries=bounds, ticks=DQs)
     cax.set_ylabel("DQ Flag")
 
     if save:

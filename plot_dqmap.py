@@ -179,7 +179,7 @@ def parse_bpixtab(bpixtab, sdq, sdqflags):
         dx = []
         dy = []
         for i in inds:
-            if data[i]["axis"] == 2:
+            if data[i]["axis"] == 1:
                 dx.append(data[i]["length"])
                 dy.append(0)
             else:
@@ -188,7 +188,6 @@ def parse_bpixtab(bpixtab, sdq, sdqflags):
         data_dict[segment]["dx"] = dx
         data_dict[segment]["dy"] = dy
 
-#    import pdb; pdb.set_trace()
     return data_dict
 
 #-----------------------------------------------------------------------------#
